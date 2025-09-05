@@ -57,7 +57,6 @@ class Up(nn.Module):
         self.conv = DoubleConv(in_ch=out_ch * 2, out_ch=out_ch)
     def forward(self, x: Tensor, skip: Tensor) -> Tensor:
         x = self.up(x)
-        # Shapes can differ due to valid convolutions; crop both to common size
         if x.shape[-2:] != skip.shape[-2:]:
             target_h = min(x.shape[-2], skip.shape[-2])
             target_w = min(x.shape[-1], skip.shape[-1])
