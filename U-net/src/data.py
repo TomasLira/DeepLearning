@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 from pathlib import Path
-from typing import Dict, Tuple, Optional, List
+from typing import Dict, Tuple, Optional, List, Union
 from PIL import Image
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -12,7 +12,7 @@ from torchvision import transforms
 
 Color = Tuple[int, int, int]                 
 ColorToId = Dict[Color, int]                
-PathLike = str | Path
+PathLike = Union[str, Path]
 
 class MaskToClassIds:
     """

@@ -12,9 +12,9 @@ class DoubleConv(nn.Module):
     def __init__(self, in_ch: int, out_ch: int) -> None:
         super().__init__()
         self.net = nn.Sequential(
-            nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=0, bias=True),
+            nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1, bias=True),
             nn.ReLU(inplace=True),
-            nn.Conv2d(out_ch, out_ch, kernel_size=3, padding=0, bias=True),
+            nn.Conv2d(out_ch, out_ch, kernel_size=3, padding=1, bias=True),
             nn.ReLU(inplace=True),
         )
     def forward(self, x: Tensor) -> Tensor:
@@ -42,12 +42,6 @@ class BottleNeck(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         return self.net(x)
 
-def center_crop(enc_feat: Tensor, target_h: int, target_w: int) -> Tensor:
-    _, _, h, w = enc_feat.shape
-    dh = (h - target_h) // 2
-    dw = (w - target_w) // 2
-    return enc_feat[:, :, dh:dh + target_h, dw:dw + target_w]
-
 class Up(nn.Module):
     up: nn.ConvTranspose2d
     conv: DoubleConv
@@ -58,10 +52,33 @@ class Up(nn.Module):
     def forward(self, x: Tensor, skip: Tensor) -> Tensor:
         x = self.up(x)
         if x.shape[-2:] != skip.shape[-2:]:
-            target_h = min(x.shape[-2], skip.shape[-2])
-            target_w = min(x.shape[-1], skip.shape[-1])
-            x = center_crop(x, target_h, target_w)
-            skip = center_crop(skip, target_h, target_w)
+            diff_h = skip.shape[-2] - x.shape[-2]
+            diff_w = skip.shape[-1] - x.shape[-1]
+
+            pad_x = [0, 0, 0, 0] 
+            pad_skip = [0, 0, 0, 0]
+
+            if diff_w > 0:
+                pad_x[0] = diff_w // 2
+                pad_x[1] = diff_w - pad_x[0]
+            elif diff_w < 0:
+                dw = -diff_w
+                pad_skip[0] = dw // 2
+                pad_skip[1] = dw - pad_skip[0]
+
+            if diff_h > 0:
+                pad_x[2] = diff_h // 2
+                pad_x[3] = diff_h - pad_x[2]
+            elif diff_h < 0:
+                dh = -diff_h
+                pad_skip[2] = dh // 2
+                pad_skip[3] = dh - pad_skip[2]
+
+            if any(p > 0 for p in pad_x):
+                x = torch.nn.functional.pad(x, pad_x)
+            if any(p > 0 for p in pad_skip):
+                skip = torch.nn.functional.pad(skip, pad_skip)
+
         x = torch.cat([skip, x], dim=1)
         return self.conv(x)
 
